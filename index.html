@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      3D都市モデルPLATEAU建物データ(PMTiles)+気象庁 推計震度分布(PMTiles) on
+      deck.gl
+    </title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+
+      #credits {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        padding: 2px;
+        font-size: 12px;
+        color: #000000;
+        text-shadow: none;
+        background-color: rgba(255, 255, 255, 0.7);
+      }
+
+      #credits a {
+        color: #000000;
+        pointer-events: auto;
+      }
+
+      .legend {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 3px;
+        bottom: 40px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        font: 12px/14px "Helvetica Neue", Arial, Helvetica, sans-serif;
+        padding: 10px;
+        position: absolute;
+        right: 10px;
+        z-index: 1;
+        line-height: 20px;
+        height: auto;
+      }
+
+      .legend h4 {
+        margin: 0 0 10px;
+      }
+
+      .legend div span {
+        border-radius: 50%;
+        display: inline-block;
+        height: 15px;
+        margin-right: 10px;
+        width: 15px;
+        color: orangered;
+      }
+
+      .square {
+        width: 15px;
+        height: 15px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="map"></div>
+    <div id="credits"></div>
+    <div id="legend" style="display: block" class="legend">
+      <h4>推計震度</h4>
+      <div
+        class="square"
+        style="background-color: rgb(180, 0, 140); display: inline-block"
+      ></div>
+      <span style="display: inline-block; margin-left: 5px">震度7</span><br />
+      <div
+        class="square"
+        style="background-color: rgb(165, 0, 33); display: inline-block"
+      ></div>
+      <span style="display: inline-block; margin-left: 5px">震度6強</span><br />
+      <div
+        class="square"
+        style="background-color: rgb(255, 40, 0); display: inline-block"
+      ></div>
+      <span style="display: inline-block; margin-left: 5px">震度6弱</span><br />
+      <div
+        class="square"
+        style="background-color: rgb(255, 153, 0); display: inline-block"
+      ></div>
+      <span style="display: inline-block; margin-left: 5px">震度5強</span><br />
+      <div
+        class="square"
+        style="background-color: rgb(250, 230, 0); display: inline-block"
+      ></div>
+      <span style="display: inline-block; margin-left: 5px">震度5弱</span><br />
+      <div
+        class="square"
+        style="background-color: rgb(250, 230, 150); display: inline-block"
+      ></div>
+      <span style="display: inline-block; margin-left: 5px">震度4</span>
+    </div>
+
+    <script type="module">
+      // クレジット
+      const creditsElement = document.getElementById("credits");
+      creditsElement.innerHTML = `<a href="https://www.jma.go.jp/bosai/map.html#11/37.18/136.795/&contents=estimated_intensity_map" target="_blank">気象庁 推計震度分布</a> | <a href="https://www.geospatial.jp/ckan/dataset/plateau" target="_blank">3D都市モデルPLATEAU(国土交通省)</a> | <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>`;
+
+      // ESモジュールのインポート（loaders.gl/pmtiles）
+      import { PMTilesSource } from "https://cdn.jsdelivr.net/npm/@loaders.gl/pmtiles@4.1.0-alpha.11/+esm";
+
+      // 3D都市モデルPLATEAUソース
+      const tileSource_1 = new PMTilesSource({
+        url: "https://xs489works.xsrv.jp/pmtiles-data/plateau/PLATEAU_2022_LOD1.pmtiles",
+      });
+
+      // 気象庁 推計震度分布ソース
+      const tileSource_2 = new PMTilesSource({
+        url: "https://xs489works.xsrv.jp/pmtiles-data/jma-estimated-shindo/202401011610_390_石川県能登地方.pmtiles",
+      });
+
+      const deckgl = new deck.DeckGL({
+        container: "map",
+        initialViewState: {
+          latitude: 36.5780443,
+          longitude: 136.6455965,
+          zoom: 17,
+          bearing: 0,
+          pitch: 65,
+          maxPitch: 85,
+        },
+        controller: true,
+        layers: [
+          // 地理院タイル（空中写真）
+          new deck.TileLayer({
+            data: "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
+            minZoom: 0,
+            maxZoom: 23,
+            tileSize: 256,
+            renderSubLayers: (props) =>
+              new deck.BitmapLayer(props, {
+                data: null,
+                image: props.data,
+                bounds: (({ west, south, east, north }) => [
+                  west,
+                  south,
+                  east,
+                  north,
+                ])(props.tile.bbox),
+              }),
+          }),
+          // 気象庁 推計震度分布(PMTiles)（TerrainExtension）
+          new deck.TileLayer({
+            id: "shindo-pmtileslayer-1",
+            getTileData: tileSource_2 && tileSource_2.getTileData,
+            maxRequests: 20,
+            pickable: true,
+            // autoHighlight: true,
+            minZoom: 7,
+            maxZoom: 11,
+            tileSize: 256,
+            renderSubLayers: (props) => {
+              // pmtilesのデータがベクター型なのでサブレイヤーはGeoJsonレイヤーを使って可視化する
+              return new deck.GeoJsonLayer({
+                id: `${props.id}-geojson`,
+                data: props.data,
+                pickable: true,
+                // getFillColor: [255, 255, 255, 128],
+                getFillColor: ({ properties }) => {
+                  const { Intensity } = properties;
+                  if (Intensity == "4") return [250, 230, 150];
+                  else if (Intensity == "5-") return [250, 230, 0];
+                  else if (Intensity == "5+") return [255, 153, 0];
+                  else if (Intensity == "6-") return [255, 40, 0];
+                  else if (Intensity == "6+") return [165, 0, 33];
+                  else if (Intensity == "7") return [180, 0, 140];
+                },
+                getLineColor: ({ properties }) => {
+                  const { Intensity } = properties;
+                  if (Intensity == "4") return [250, 230, 150];
+                  else if (Intensity == "5-") return [250, 230, 0];
+                  else if (Intensity == "5+") return [255, 153, 0];
+                  else if (Intensity == "6-") return [255, 40, 0];
+                  else if (Intensity == "6+") return [165, 0, 33];
+                  else if (Intensity == "7") return [180, 0, 140];
+                },
+                // lineWidthScale: 1,
+                // lineWidthMinPixels: 0.5,
+                opacity: 0.5,
+              });
+            },
+          }),
+          // 【参考】https://gunmagisgeek.com/blog/deck-gl/8323
+          // 3D都市モデルPLATEAU建物データLOD1(PMTiles)
+          new deck.TileLayer({
+            id: "plateau-pmtileslayer",
+            getTileData: tileSource_1 && tileSource_1.getTileData,
+            maxRequests: 20,
+            pickable: true,
+            autoHighlight: true,
+            minZoom: 16,
+            maxZoom: 16,
+            tileSize: 256,
+            renderSubLayers: (props) => {
+              // pmtilesのデータがベクター型なのでサブレイヤーはGeoJsonレイヤーを使って可視化する
+              return new deck.GeoJsonLayer({
+                id: `${props.id}-geojson`,
+                data: props.data,
+                pickable: true,
+                autoHighlight: true,
+                extruded: true,
+                getElevation: (d) => d.properties.measuredHeight,
+                wireframe: true,
+                getFillColor: [255, 255, 255, 128],
+                // lineWidthScale: 1,
+                // lineWidthMinPixels: 0.5,
+                operation: "terrain+draw",
+              });
+            },
+          }),
+          // 気象庁 推計震度分布(PMTiles)（TerrainExtension）
+          new deck.TileLayer({
+            id: "shindo-pmtileslayer-2",
+            getTileData: tileSource_2 && tileSource_2.getTileData,
+            maxRequests: 20,
+            pickable: true,
+            // autoHighlight: true,
+            minZoom: 7,
+            maxZoom: 11,
+            tileSize: 256,
+            renderSubLayers: (props) => {
+              // pmtilesのデータがベクター型なのでサブレイヤーはGeoJsonレイヤーを使って可視化する
+              return new deck.GeoJsonLayer({
+                id: `${props.id}-geojson`,
+                data: props.data,
+                pickable: true,
+                // getFillColor: [255, 255, 255, 128],
+                getFillColor: ({ properties }) => {
+                  const { Intensity } = properties;
+                  if (Intensity == "4") return [250, 230, 150];
+                  else if (Intensity == "5-") return [250, 230, 0];
+                  else if (Intensity == "5+") return [255, 153, 0];
+                  else if (Intensity == "6-") return [255, 40, 0];
+                  else if (Intensity == "6+") return [165, 0, 33];
+                  else if (Intensity == "7") return [180, 0, 140];
+                },
+                getLineColor: ({ properties }) => {
+                  const { Intensity } = properties;
+                  if (Intensity == "4") return [250, 230, 150];
+                  else if (Intensity == "5-") return [250, 230, 0];
+                  else if (Intensity == "5+") return [255, 153, 0];
+                  else if (Intensity == "6-") return [255, 40, 0];
+                  else if (Intensity == "6+") return [165, 0, 33];
+                  else if (Intensity == "7") return [180, 0, 140];
+                },
+                // lineWidthScale: 1,
+                // lineWidthMinPixels: 0.5,
+                opacity: 0.3,
+                extensions: [new deck._TerrainExtension()],
+              });
+            },
+          }),
+        ],
+      });
+    </script>
+  </body>
+</html>
