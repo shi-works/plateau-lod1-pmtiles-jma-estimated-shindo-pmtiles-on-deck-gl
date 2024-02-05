@@ -156,6 +156,7 @@
                 ])(props.tile.bbox),
               }),
           }),
+          /*
           // 気象庁 推計震度分布(PMTiles)（TerrainExtension）
           new deck.TileLayer({
             id: "shindo-pmtileslayer-1",
@@ -193,10 +194,11 @@
                 },
                 // lineWidthScale: 1,
                 // lineWidthMinPixels: 0.5,
-                opacity: 0.5,
+                opacity: 0.7,
               });
             },
           }),
+          */
           // 【参考】https://gunmagisgeek.com/blog/deck-gl/8323
           // 3D都市モデルPLATEAU建物データLOD1(PMTiles)
           new deck.TileLayer({
@@ -219,8 +221,8 @@
                 getElevation: (d) => d.properties.measuredHeight,
                 wireframe: true,
                 getFillColor: [255, 255, 255, 128],
-                // lineWidthScale: 1,
-                // lineWidthMinPixels: 0.5,
+                lineWidthScale: 1,
+                lineWidthMinPixels: 0.5,
                 operation: "terrain+draw",
               });
             },
